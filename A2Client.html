@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html> 
+    <title>Thomas Kelly - Assignment 2</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+   
+
+    <body style = "background-color: #5CDB95;"> 
+    <div id = "app">
+    
+    <h1 style = "color: #EDF5E1;">Database Manager</h1>
+    <h2 style = "color:#EDF5E1;">Assignment 2</h2>
+    <h3 style = "color: #EDF5E1;">Thomas Kelly - 16323455</h3>
+    
+            <hr> 
+            <Button v-on:click = "btnHandler(0)" style = "background-color:#05386B; color:#EDF5E1; border-radius:10px;padding:5px; border: 2px solid #8EE4AF;">Create</Button> 
+            <br><br>
+            <button v-on:click = "btnHandler(1)" style = "background-color:#05386B; color:#EDF5E1; border-radius:10px;padding:5px; border: 2px solid #8EE4AF">Query</button>  <input v-model="movie" placeholder="Enter movie">  <p style = "color: #faeae8; font-size: 20px;">{{movie}} </p>
+            
+            <button v-on:click = "btnHandler(2)" style = "background-color:#05386B; color:#EDF5E1; border-radius:10px;padding:5px; border: 2px solid #8EE4AF">Destroy</button>
+            <hr> 
+			<p>{{data}}</p> 
+            </div>        
+    
+        
+        
+    </body>
+    <script>
+    let event=  0; // variable to determine which function (create,query,destroy) is carried out
+    let url; 
+    
+    const req = {
+        method: 'GET' 
+    }
+    let myVue = new Vue ({
+        el: "#app", 
+        data: {
+            movie: "", //stores movie input into text field 
+			data: "" 
+        }, 
+        methods: {
+            btnHandler: (event) => { //handle pressing of button
+                let actions = ["Create","Query","Destroy"] //store each buttons function
+                console.log("Executing function " + actions[event])
+                url = "http://lvh.me:3000";  
+                if(event == 0){ //CREATE DATABASE 
+                    movie = ""; 
+                    url=url + "/create";   
+                } else if (event == 1){//QUERY THE DATABASE 
+                    if(myVue.movie == ""){ // if the user leaves the movie field empty
+                        console.log("Please enter a movie\n");
+                    } else { //otherwise, concatenate the search movie to the url 
+                        url=url + "/query/" + myVue.movie;
+                    }
+                    
+                } else { //OTHERWISE, DESTROY THE DATABASE
+                    movie = "";  
+                    url=url + "/destroy";
+                }
+                console.log(url);
+                 
+                
+                const myRequest = new Request(url, req); //build request
+                fetch(myRequest) //invoke fetch get request to url
+                .then( (response) => response.text() )
+                .then( (data) => {
+                    console.log(data);
+                })
+                .catch( (e)=> console.error(e))
+                
+            }
+        }
+        }
+    )
+        
+    
+    </script>
+</html>
