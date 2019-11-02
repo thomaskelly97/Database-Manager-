@@ -15,12 +15,13 @@
             <hr> 
             <Button v-on:click = "btnHandler(0)" style = "background-color:#05386B; color:#EDF5E1; border-radius:10px;padding:5px; border: 2px solid #8EE4AF;">Create</Button> 
             <br><br>
-            <button v-on:click = "btnHandler(1)" style = "background-color:#05386B; color:#EDF5E1; border-radius:10px;padding:5px; border: 2px solid #8EE4AF">Query</button>  <input v-model="movie" placeholder="Enter movie">  <p style = "color: #faeae8; font-size: 20px;">{{movie}} </p>
+            <button v-on:click = "btnHandler(1)" style = "background-color:#05386B; color:#EDF5E1; border-radius:10px;padding:5px; border: 2px solid #8EE4AF">Query</button>  <input v-model="year" placeholder="Enter year"> <input v-model="movie" placeholder="Enter movie"> <p style = "color: #faeae8; font-size: 20px;">{{movie}} </p>
             
             <button v-on:click = "btnHandler(2)" style = "background-color:#05386B; color:#EDF5E1; border-radius:10px;padding:5px; border: 2px solid #8EE4AF">Destroy</button>
             <hr> 
-			<p>{{data}}</p> 
-            </div>        
+            <pre><p style = "color: #EDF5E1; font-size: 18px; font-style: solid;">{{data}}</p></pre> 
+            <p>{{debug}}</p>
+    </div>        
     
         
         
@@ -28,42 +29,56 @@
     <script>
     let event=  0; // variable to determine which function (create,query,destroy) is carried out
     let url; 
-    
+    let port = 3000; 
     const req = {
         method: 'GET' 
     }
+    //BUILD VUE OBJECT 
     let myVue = new Vue ({
         el: "#app", 
         data: {
             movie: "", //stores movie input into text field 
-			data: "" 
+            year: "",
+            data: "",
+            debug: ""
         }, 
         methods: {
             btnHandler: (event) => { //handle pressing of button
                 let actions = ["Create","Query","Destroy"] //store each buttons function
                 console.log("Executing function " + actions[event])
-                url = "http://lvh.me:3000";  
-                if(event == 0){ //CREATE DATABASE 
-                    movie = ""; 
-                    url=url + "/create";   
-                } else if (event == 1){//QUERY THE DATABASE 
-                    if(myVue.movie == ""){ // if the user leaves the movie field empty
-                        console.log("Please enter a movie\n");
+                url = "http://ec2-34-252-63-36.eu-west-1.compute.amazonaws.com:" + port; //build url 
+                //CREATE DATABASE =======================================
+                if(event == 0){  
+                    movie = " "; 
+                    url=url + "/create"; 
+                    myVue.data = "> Please wait while the database is created and populated."
+                    myVue.debug = ""; 
+                //QUERY THE DATABASE =======================================  
+                } else if (event == 1){
+                    if(myVue.year == "" || myVue.movie == ""){ // if the user leaves the movie field empty
+                        console.log("Please enter a movie substring & year\n");
+                        myVue.debug = "Please enter a year & a substring\n";
+                         
                     } else { //otherwise, concatenate the search movie to the url 
-                        url=url + "/query/" + myVue.movie;
+                        
+                        url=url + "/query/" + myVue.movie + "/" + myVue.year;
+                        
+                        myVue.debug = ""; 
+                        
                     }
-                    
-                } else { //OTHERWISE, DESTROY THE DATABASE
+                //DESTROY THE DATABASE ======================================= 
+                } else { 
                     movie = "";  
                     url=url + "/destroy";
                 }
                 console.log(url);
                  
-                
+                //BUILD AND SEND THE REQUEST  
                 const myRequest = new Request(url, req); //build request
                 fetch(myRequest) //invoke fetch get request to url
                 .then( (response) => response.text() )
                 .then( (data) => {
+                    myVue.data = data;
                     console.log(data);
                 })
                 .catch( (e)=> console.error(e))
