@@ -1,5 +1,5 @@
 "use strict"; 
-
+//Thomas Kelly - 16323455 
 const express = require("express");
 const cors = require("cors");
 const app = express();
@@ -10,11 +10,25 @@ var fs = require('fs');
 const port = 3000; 
 app.use(cors())
 
+
+/*Project Outline 
+I outline below the functionality of my program!
+1. Firstly, incoming url requests are dealt with using the app.get functions 
+2. For each requested function, the 'handle' function is called with a different 'choice' integer parameter to indicate what function should be performed 
+3. For /create, the dynamodb create table function is called. After this, a custom 'populateTable' function is called. 
+4. The populateTable function accesses the S3 bucket and pulls the moviedata.json file. The table is then populated with this movie data. 
+5. This function returns a promise which resolves after the table finishes populating, notifying the client when it is successfully finsihed. 
+6. The query part utilises the inbuilt docClient.query function along with a promise to query the database and then return query results to the client, as specified in the assignment outline. 
+7. The /destroy request results in usage of dynamodb.deleteTable function to delete the table. 
+8. I also decided to add an extra 'Top Rated' function. This uses the scan function to scan movies from since the year 2000 who have a rating over 8.5. The first ten are returned to the client. 
+*/
+
 //DEAL WITH GET REQUESTS ===========================================
 app.get("/", (req, res) => res.send("")) //default condition
 app.get("/create", (req, res) => handle(req,res,0))
 app.get("/query/:movie/:year", (req, res) => handle(req,res,1))
 app.get("/destroy", (req, res) => handle(req,res,2))
+app.get("/top", (req, res) => handle(req,res,3))
 //===================================================================
 
 let creds = new AWS.Credentials('accesskey', 'secretkey'); //set AWS CREDENTIALS 
@@ -100,7 +114,7 @@ function handle(req,res,function_choice,movie){
         //Specify the Query Parameters 
         var params = {
             TableName : "Movies",
-            KeyConditionExpression: "#yr = :yyyy and begins_with(title, :ss) ", // this is the search condition 
+            KeyConditionExpression: "#yr = :yyyy and begins_with(title, :ss) ", // this is the search condition (if year = 'year' and title begins with('substring'))
             ExpressionAttributeNames:{
                 "#yr": "year"
             },
@@ -147,7 +161,7 @@ function handle(req,res,function_choice,movie){
       
 
  //===========================================destroy=====================================   
-    } else { //otherwise it'll be a DESTROY REQUEST 
+    } else if(function_choice==2){ //otherwise it'll be a DESTROY REQUEST 
         console.log("Destroying database...");
         
         //specify table to destroy 
@@ -163,6 +177,67 @@ function handle(req,res,function_choice,movie){
             res.send("> Database deleted")
         }
     });
+
+//===========================================SCAN: Top Rated Movie Extra Functionality=====================================   
+    } else {
+        console.log("Pulling top rated movies");
+        var docClient = new AWS.DynamoDB.DocumentClient();   
+        let result = "Top Ten\n", set=0;  
+        let i=0, block= 0; 
+
+        //Specify the Query Parameters 
+        var params = {
+            TableName: "Movies",
+            ProjectionExpression: "#yr, title, info.rating",
+            FilterExpression: "#yr between :start_yr and :end_yr and info.rating > :r1", 
+            ExpressionAttributeNames: {
+                "#yr": "year",
+            },
+            ExpressionAttributeValues: {
+                 ":start_yr": 2000,
+                 ":end_yr": 2014,
+                 ":r1": 8.5
+            }
+        };
+
+        let prom = new Promise ( (resolve,reject) => { //promise to send response to query 
+            docClient.scan(params, onScan);
+
+            function onScan(err, data) {
+                if (err) {
+                    console.error("Unable to scan the table. Error JSON:", JSON.stringify(err, null, 2));
+                } else {
+                    // print all the movies
+                    console.log("Scan succeeded.");
+                    data.Items.forEach(function(movie) {
+                    i++;
+                    console.log(i, ". ", movie.title, "- rating:", movie.info.rating);
+                            result = result.concat(i, ". ", movie.title, " - rating: ", movie.info.rating, "\n");
+                    });
+
+                    if(i == 10 && block==1){ //when we have found all movies that meet the query specifications, resolve the promise 
+                        resolve(result); //resolve the promise 
+                    } else if (data.Items.length == 0){
+                        reject("> There are no movies in the database matching that criteria."); //reject the promise. 
+                    }
+                    if (typeof data.LastEvaluatedKey != "undefined") {
+                        console.log("Scanning for more...");
+                        params.ExclusiveStartKey = data.LastEvaluatedKey;
+                        block=1;
+                        docClient.scan(params, onScan);
+                    }
+                    
+                }
+            }
+             
+        });
+        
+
+        prom.then((result) => { //promise resolves 
+            console.log("Promise resolved. Sending response.\n", result);
+            res.send(result); //now send the response 
+        });
+      
     }
     
 }
